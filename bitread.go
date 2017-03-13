@@ -155,18 +155,13 @@ func (r *BitReader) ReadInt(n uint) uint {
 // Ease of use wrapper for ReadBytesInto().
 func (r *BitReader) ReadBytes(n int) []byte {
 	res := make([]byte, 0, n)
-	r.ReadNBytesInto(&res, n)
+	r.ReadBytesInto(&res, n)
 	return res
 }
 
-// ReadBytesInto reads cap(out) bytes into out.
-func (r *BitReader) ReadBytesInto(out *[]byte) {
-	r.ReadNBytesInto(out, cap(*out))
-}
-
-// ReadNBytesInto reads n bytes into out.
+// ReadBytesInto reads n bytes into out.
 // Useful for pooling []byte slices.
-func (r *BitReader) ReadNBytesInto(out *[]byte, n int) {
+func (r *BitReader) ReadBytesInto(out *[]byte, n int) {
 	bitLevel := r.offset&7 != 0
 	if !bitLevel && r.offset+(n<<3) <= r.bitsInBuffer {
 		// Shortcut if offset%8 = 0 and all bytes are already buffered
