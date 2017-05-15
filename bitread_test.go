@@ -24,9 +24,9 @@ func TestReadBit(t *testing.T) {
 		for i := 0; i < 8; i++ {
 			// Least significant bit first
 			if br.ReadBit() {
-				res[7-i] = "1"[0]
+				res[7-i] = '1'
 			} else {
-				res[7-i] = "0"[0]
+				res[7-i] = '0'
 			}
 		}
 
