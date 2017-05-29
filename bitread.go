@@ -1,7 +1,7 @@
 // Package bitread provides a bit level reader.
 package bitread
 
-// TODO: len(BitReader.buffer) must be a multiple of 4 and > 8 for the BitReader to work, this shouldn't be neccessary?
+// TODO: len(BitReader.buffer) must be a multiple of 4 and > 8 for the BitReader to work, this shouldn't be necessary?
 
 import (
 	"bytes"
@@ -52,7 +52,7 @@ func (r *BitReader) LazyPosition() int {
 	return r.lazyPosition
 }
 
-// ActualPosition returns the offset from the start in bits
+// ActualPosition returns the offset from the start in bits.
 func (r *BitReader) ActualPosition() int {
 	return r.lazyPosition + r.offset
 }
@@ -174,8 +174,8 @@ func (r *BitReader) ReadBytesInto(out *[]byte, n int) {
 	}
 }
 
-// ReadCString reads n bytes as characters into a C string.
-// String is terminated by zero.
+// ReadCString reads n bytes as characters into a string.
+// The string is terminated by zero.
 func (r *BitReader) ReadCString(n int) string {
 	b := r.ReadBytes(n)
 	end := bytes.IndexByte(b, 0)
