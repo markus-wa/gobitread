@@ -45,6 +45,7 @@ type BitReader struct {
 	bitsInBuffer int
 	lazyPosition int
 	chunkTargets stack
+	endReached   bool
 }
 
 // LazyPosition returns the offset at the time of the last time the buffer was refilled.
@@ -74,6 +75,7 @@ func (r *BitReader) OpenWithBuffer(underlying io.Reader, buffer []byte) {
 		panic("Buffer must be larger than " + string(sled<<1) + " bytes")
 	}
 
+	r.endReached = false
 	r.underlying = underlying
 	r.buffer = buffer
 
@@ -246,9 +248,18 @@ func (r *BitReader) ChunkFinished() bool {
 
 func (r *BitReader) advance(bits uint) {
 	r.offset += int(bits)
-	for r.offset >= r.bitsInBuffer {
-		// Refill if we reached the sled
-		r.refillBuffer()
+	if r.offset >= r.bitsInBuffer {
+		if r.endReached {
+			// As long as we stay in bounds this should be ok, just don't refill
+
+			if r.offset > r.bitsInBuffer {
+				// Read beyond end of underlying Reader
+				panic(io.ErrUnexpectedEOF)
+			}
+		} else {
+			// Refill if we reached the sled
+			r.refillBuffer()
+		}
 	}
 }
 
@@ -259,11 +270,15 @@ func (r *BitReader) refillBuffer() {
 	r.offset -= r.bitsInBuffer // Sled bits used remain in offset
 	r.lazyPosition += r.bitsInBuffer
 
-	newBytes, _ := r.underlying.Read(r.buffer[sled:])
+	newBytes, err := r.underlying.Read(r.buffer[sled:])
+	if err != nil && err != io.EOF {
+		panic(err)
+	}
 
 	r.bitsInBuffer = newBytes << 3
 	if newBytes < len(r.buffer)-(sled<<1) {
 		// We're done here, consume sled
 		r.bitsInBuffer += sledBits
+		r.endReached = true
 	}
 }
