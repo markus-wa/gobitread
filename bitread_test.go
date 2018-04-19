@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/markus-wa/gobitread"
 	"math"
 	"testing"
+
+	"github.com/markus-wa/gobitread"
 )
 
 func TestReadBit(t *testing.T) {
