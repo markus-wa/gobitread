@@ -213,31 +213,36 @@ func (r *BitReader) EndChunk() {
 	if delta < 0 {
 		panic("Someone read beyond a chunk boundary, what a dick")
 	} else if delta > 0 {
-		// Seek for the end of the chunk
-		bufferBits := r.bitsInBuffer - r.offset
-		seeker, ok := r.underlying.(io.Seeker)
-		if delta > bufferBits+sledBits && ok {
-			// Seek with io.Seeker
-			unbufferedSkipBits := delta - bufferBits
-			seeker.Seek(int64((unbufferedSkipBits>>3)-sled), io.SeekCurrent)
+		r.Skip(uint(delta))
+	}
+}
 
-			newBytes, _ := r.underlying.Read(r.buffer)
+// Skip skips n bits.
+func (r *BitReader) Skip(n uint) {
+	// Seek for the end of the chunk
+	bufferBits := r.bitsInBuffer - r.offset
+	seeker, ok := r.underlying.(io.Seeker)
+	if n > uint(bufferBits+sledBits) && ok {
+		// Seek with io.Seeker
+		unbufferedSkipBits := n - uint(bufferBits)
+		seeker.Seek(int64((unbufferedSkipBits>>3)-sled), io.SeekCurrent)
 
-			r.bitsInBuffer = (newBytes << 3) - sledBits
-			if newBytes <= sled {
-				// TODO: Maybe do this even if newBytes is <= bufferSize - sled like in refillBuffer
-				// Consume sled
-				// Shouldn't really happen unless we reached the end of the stream
-				// In that case bitsInBuffer should be 0 after this line (newBytes=0 - sled + sled)
-				r.bitsInBuffer += sledBits
-			}
+		newBytes, _ := r.underlying.Read(r.buffer)
 
-			r.offset = unbufferedSkipBits & 7
-			r.lazyPosition = target - r.offset
-		} else {
-			// Can't seek or no seek necessary
-			r.advance(uint(delta))
+		r.bitsInBuffer = (newBytes << 3) - sledBits
+		if newBytes <= sled {
+			// TODO: Maybe do this even if newBytes is <= bufferSize - sled like in refillBuffer
+			// Consume sled
+			// Shouldn't really happen unless we reached the end of the stream
+			// In that case bitsInBuffer should be 0 after this line (newBytes=0 - sled + sled)
+			r.bitsInBuffer += sledBits
 		}
+
+		r.offset = int(unbufferedSkipBits & 7)
+		r.lazyPosition = int(n) + r.ActualPosition() - r.offset
+	} else {
+		// Can't seek or no seek necessary
+		r.advance(n)
 	}
 }
 
