@@ -110,10 +110,10 @@ func (r *BitReader) ReadBit() bool {
 }
 
 // ReadBits reads n bits into a []byte.
-func (r *BitReader) ReadBits(n uint) []byte {
+func (r *BitReader) ReadBits(n int) []byte {
 	b := make([]byte, (n+7)>>3)
 	bitLevel := r.offset&7 != 0
-	for i := uint(0); i < n>>3; i++ {
+	for i := 0; i < n>>3; i++ {
 		b[i] = r.readByteInternal(bitLevel)
 	}
 	if n&7 != 0 {
@@ -139,15 +139,15 @@ func (r *BitReader) readByteInternal(bitLevel bool) byte {
 
 // ReadBitsToByte reads n bits into a byte.
 // Undefined for n > 8.
-func (r *BitReader) ReadBitsToByte(n uint) byte {
+func (r *BitReader) ReadBitsToByte(n int) byte {
 	return byte(r.ReadInt(n))
 }
 
 // ReadInt reads the next n bits as an int.
 // Undefined for n > 32.
-func (r *BitReader) ReadInt(n uint) uint {
+func (r *BitReader) ReadInt(n int) uint {
 	val := binary.LittleEndian.Uint64(r.buffer[r.offset>>3&^3:])
-	res := uint(val << (64 - (uint(r.offset) & 31) - n) >> (64 - n))
+	res := uint(val << uint(64-(r.offset&31)-n) >> (64 - uint(n)))
 	// Advance after using offset!
 	r.advance(n)
 	return res
@@ -168,7 +168,7 @@ func (r *BitReader) ReadBytesInto(out *[]byte, n int) {
 	if !bitLevel && r.offset+(n<<3) <= r.bitsInBuffer {
 		// Shortcut if offset%8 = 0 and all bytes are already buffered
 		*out = append(*out, r.buffer[r.offset>>3:(r.offset>>3)+n]...)
-		r.advance(uint(n) << 3)
+		r.advance(n << 3)
 	} else {
 		for i := 0; i < n; i++ {
 			*out = append(*out, r.readByteInternal(bitLevel))
@@ -189,10 +189,10 @@ func (r *BitReader) ReadCString(n int) string {
 
 // ReadSignedInt is like ReadInt but returns signed int.
 // Undefined for n > 32.
-func (r *BitReader) ReadSignedInt(n uint) int {
+func (r *BitReader) ReadSignedInt(n int) int {
 	val := binary.LittleEndian.Uint64(r.buffer[r.offset>>3&^3:])
 	// Cast to int64 before right shift & use offset before advance
-	res := int(int64(val<<(64-(uint(r.offset)&31)-n)) >> (64 - n))
+	res := int(int64(val<<uint(64-(r.offset&31)-n)) >> (64 - uint(n)))
 	r.advance(n)
 	return res
 }
@@ -213,18 +213,23 @@ func (r *BitReader) EndChunk() {
 	if delta < 0 {
 		panic("Someone read beyond a chunk boundary, what a dick")
 	} else if delta > 0 {
-		r.Skip(uint(delta))
+		r.Skip(delta)
 	}
 }
 
+// ChunkFinished returns true if the current position is at the end of the chunk.
+func (r *BitReader) ChunkFinished() bool {
+	return r.chunkTargets.top() <= r.ActualPosition()
+}
+
 // Skip skips n bits.
-func (r *BitReader) Skip(n uint) {
+func (r *BitReader) Skip(n int) {
 	// Seek for the end of the chunk
 	bufferBits := r.bitsInBuffer - r.offset
 	seeker, ok := r.underlying.(io.Seeker)
-	if n > uint(bufferBits+sledBits) && ok {
+	if n > bufferBits+sledBits && ok {
 		// Seek with io.Seeker
-		unbufferedSkipBits := n - uint(bufferBits)
+		unbufferedSkipBits := n - bufferBits
 		seeker.Seek(int64((unbufferedSkipBits>>3)-sled), io.SeekCurrent)
 
 		newBytes, _ := r.underlying.Read(r.buffer)
@@ -238,22 +243,17 @@ func (r *BitReader) Skip(n uint) {
 			r.bitsInBuffer += sledBits
 		}
 
-		r.offset = int(unbufferedSkipBits & 7)
-		r.lazyPosition = int(n) + r.ActualPosition() - r.offset
+		r.offset = unbufferedSkipBits & 7
+		r.lazyPosition = r.ActualPosition() + n - r.offset
 	} else {
 		// Can't seek or no seek necessary
 		r.advance(n)
 	}
 }
 
-// ChunkFinished returns true if the current position is at the end of the chunk.
-func (r *BitReader) ChunkFinished() bool {
-	return r.chunkTargets.top() <= r.ActualPosition()
-}
-
-func (r *BitReader) advance(bits uint) {
-	r.offset += int(bits)
-	if r.offset >= r.bitsInBuffer {
+func (r *BitReader) advance(bits int) {
+	r.offset += bits
+	for r.offset >= r.bitsInBuffer {
 		if r.endReached {
 			// As long as we stay in bounds this should be ok, just don't refill
 
@@ -261,10 +261,10 @@ func (r *BitReader) advance(bits uint) {
 				// Read beyond end of underlying Reader
 				panic(io.ErrUnexpectedEOF)
 			}
-		} else {
-			// Refill if we reached the sled
-			r.refillBuffer()
 		}
+
+		// Refill if we reached the sled
+		r.refillBuffer()
 	}
 }
 
