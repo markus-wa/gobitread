@@ -83,7 +83,7 @@ func TestReadCString(t *testing.T) {
 	b := []byte(s)
 
 	br := new(bitread.BitReader)
-	br.Open(bytes.NewReader(b), 16)
+	br.Open(bytes.NewReader(b), 32)
 
 	r := br.ReadCString(len(s))
 	if r != s {
@@ -135,7 +135,7 @@ func TestReadInt(t *testing.T) {
 	}
 
 	br := new(bitread.BitReader)
-	br.Open(bytes.NewReader(b), 16)
+	br.Open(bytes.NewReader(b), 32)
 
 	for i := 0; i < len(nums); i++ {
 		r := br.ReadInt(32)
@@ -153,7 +153,7 @@ func TestReadSignedInt(t *testing.T) {
 	}
 
 	br := new(bitread.BitReader)
-	br.Open(bytes.NewReader(b), 16)
+	br.Open(bytes.NewReader(b), 32)
 
 	for i := 0; i < len(nums); i++ {
 		r := br.ReadSignedInt(32)
@@ -229,7 +229,7 @@ func TestChunkSeek(t *testing.T) {
 	}
 
 	br := new(bitread.BitReader)
-	br.Open(bytes.NewReader(b), 16)
+	br.Open(bytes.NewReader(b), 32)
 
 	br.BeginChunk(2)
 	br.ReadBit()
@@ -240,24 +240,24 @@ func TestChunkSeek(t *testing.T) {
 	}
 
 	// Beyond buffer
-	br.BeginChunk(16 << 3)
+	br.BeginChunk(32 << 3)
 	br.EndChunk()
 
 	// Check if lazyPos got updated when refilling the buffer
-	if br.LazyPosition() != 16<<3 {
+	if br.LazyPosition() != 32<<3 {
 		t.Errorf("LazyPosition is %d expected %d", br.LazyPosition(), 16<<3)
 	}
 
-	if br.ActualPosition() != 2+(16<<3) {
+	if br.ActualPosition() != 2+(32<<3) {
 		t.Errorf("ActualPostition is %d expected %d", br.ActualPosition(), 2+(16<<3))
 	}
 
 	// Get to an even position (in front of 18th byte)
 	br.ReadBits(6)
-	// Read 18th byte
+	// Read 34th byte
 	r := br.ReadSingleByte()
-	if r != 17 {
-		t.Fatalf("Expected 18th byte (17) got %d", r)
+	if r != 33 {
+		t.Fatalf("Expected 34th byte (33) got %d", r)
 	}
 }
 

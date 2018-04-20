@@ -1,16 +1,17 @@
 // Package bitread provides a bit level reader.
 package bitread
 
-// TODO: len(BitReader.buffer) must be a multiple of 4 and > 8 for the BitReader to work, this shouldn't be necessary?
+// TODO: len(BitReader.buffer) must be a multiple of 'sled' and > 2*'sled' for the BitReader to work, this shouldn't be necessary?
 
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 )
 
 const (
-	sled     = 4
+	sled     = 8
 	sledMask = sled - 1
 	sledBits = sled << 3
 )
@@ -59,14 +60,14 @@ func (r *BitReader) ActualPosition() int {
 }
 
 // Open sets the underlying io.Reader and internal buffer, making the reader ready to use.
-// bufferSize is in bytes, must be a multiple of 4 and > 8.
+// bufferSize is in bytes, must be a multiple of 8 and > 16.
 func (r *BitReader) Open(underlying io.Reader, bufferSize int) {
 	r.OpenWithBuffer(underlying, make([]byte, bufferSize))
 }
 
 // OpenWithBuffer is like Open but allows to provide the internal byte buffer.
 // Could be useful to pool buffers of short living BitReaders for example.
-// len(buffer) must be a multiple of 4 and > 8.
+// len(buffer) must be a multiple of 8 and > 16.
 func (r *BitReader) OpenWithBuffer(underlying io.Reader, buffer []byte) {
 	if len(buffer)&sledMask != 0 {
 		panic("Buffer must be a multiple of " + string(sled))
@@ -215,6 +216,9 @@ func (r *BitReader) EndChunk() {
 	} else if delta > 0 {
 		r.Skip(delta)
 	}
+	if target != r.ActualPosition() {
+		panic(fmt.Sprintf("Skipping data failed, expected position %q got %q", target, r.ActualPosition()))
+	}
 }
 
 // ChunkFinished returns true if the current position is at the end of the chunk.
@@ -230,9 +234,17 @@ func (r *BitReader) Skip(n int) {
 	if n > bufferBits+sledBits && ok {
 		// Seek with io.Seeker
 		unbufferedSkipBits := n - bufferBits
-		seeker.Seek(int64((unbufferedSkipBits>>3)-sled), io.SeekCurrent)
+		globalOffset, err := seeker.Seek(int64((unbufferedSkipBits>>3)-sled), io.SeekCurrent)
+		if err != nil {
+			panic(err)
+		}
+		r.lazyPosition = int(globalOffset) << 3
 
-		newBytes, _ := r.underlying.Read(r.buffer)
+		newBytes, err := r.underlying.Read(r.buffer)
+		if err != nil {
+			panic(err)
+		}
+		r.offset = unbufferedSkipBits & sledMask
 
 		r.bitsInBuffer = (newBytes << 3) - sledBits
 		if newBytes <= sled {
@@ -242,9 +254,6 @@ func (r *BitReader) Skip(n int) {
 			// In that case bitsInBuffer should be 0 after this line (newBytes=0 - sled + sled)
 			r.bitsInBuffer += sledBits
 		}
-
-		r.offset = unbufferedSkipBits & 7
-		r.lazyPosition = r.ActualPosition() + n - r.offset
 	} else {
 		// Can't seek or no seek necessary
 		r.advance(n)
@@ -253,16 +262,7 @@ func (r *BitReader) Skip(n int) {
 
 func (r *BitReader) advance(bits int) {
 	r.offset += bits
-	for r.offset >= r.bitsInBuffer {
-		if r.endReached {
-			// As long as we stay in bounds this should be ok, just don't refill
-
-			if r.offset > r.bitsInBuffer {
-				// Read beyond end of underlying Reader
-				panic(io.ErrUnexpectedEOF)
-			}
-		}
-
+	for r.offset > r.bitsInBuffer {
 		// Refill if we reached the sled
 		r.refillBuffer()
 	}
@@ -282,6 +282,10 @@ func (r *BitReader) refillBuffer() {
 
 	r.bitsInBuffer = newBytes << 3
 	if newBytes < len(r.buffer)-(sled<<1) {
+		if r.endReached {
+			// Read beyond end of underlying Reader
+			panic(io.ErrUnexpectedEOF)
+		}
 		// We're done here, consume sled
 		r.bitsInBuffer += sledBits
 		r.endReached = true
