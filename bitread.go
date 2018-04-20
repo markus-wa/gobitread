@@ -70,10 +70,10 @@ func (r *BitReader) Open(underlying io.Reader, bufferSize int) {
 // len(buffer) must be a multiple of 8 and > 16.
 func (r *BitReader) OpenWithBuffer(underlying io.Reader, buffer []byte) {
 	if len(buffer)&sledMask != 0 {
-		panic("Buffer must be a multiple of " + string(sled))
+		panic(fmt.Sprintf("Buffer must be a multiple of %d", sled))
 	}
 	if len(buffer) <= sled<<1 {
-		panic("Buffer must be larger than " + string(sled<<1) + " bytes")
+		panic(fmt.Sprintf("Buffer must be larger than %d bytes", sled<<1))
 	}
 
 	r.endReached = false
@@ -217,7 +217,7 @@ func (r *BitReader) EndChunk() {
 		r.Skip(delta)
 	}
 	if target != r.ActualPosition() {
-		panic(fmt.Sprintf("Skipping data failed, expected position %q got %q", target, r.ActualPosition()))
+		panic(fmt.Sprintf("Skipping data failed, expected position %d got %d", target, r.ActualPosition()))
 	}
 }
 
