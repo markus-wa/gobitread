@@ -7,7 +7,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/markus-wa/gobitread"
+	bitread "github.com/markus-wa/gobitread"
 )
 
 func TestReadBit(t *testing.T) {
