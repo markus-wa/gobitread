@@ -276,18 +276,19 @@ func (r *BitReader) refillBuffer() {
 	r.lazyPosition += r.bitsInBuffer
 
 	newBytes, err := r.underlying.Read(r.buffer[sled:])
-	if err != nil && err != io.EOF {
-		panic(err)
-	}
-
 	r.bitsInBuffer = newBytes << 3
-	if newBytes < len(r.buffer)-(sled<<1) {
-		if r.endReached {
-			// Read beyond end of underlying Reader
-			panic(io.ErrUnexpectedEOF)
+
+	if err != nil {
+		if err == io.EOF {
+			if r.endReached {
+				// Read beyond end of underlying Reader
+				panic(io.ErrUnexpectedEOF)
+			}
+			// We're done here, consume sled
+			r.bitsInBuffer += sledBits
+			r.endReached = true
+		} else {
+			panic(err)
 		}
-		// We're done here, consume sled
-		r.bitsInBuffer += sledBits
-		r.endReached = true
 	}
 }
