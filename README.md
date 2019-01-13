@@ -19,4 +19,7 @@ Provides a bit level reader for go.
 
 
 ## License
+
+This project is licensed under the [MIT license](LICENSE.md).
+
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fmarkus-wa%2Fgobitread.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fmarkus-wa%2Fgobitread?ref=badge_large)
