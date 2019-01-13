@@ -7,6 +7,7 @@ Provides a bit level reader for go.
 [![codecov](https://codecov.io/gh/markus-wa/gobitread/branch/master/graph/badge.svg)](https://codecov.io/gh/markus-wa/gobitread)
 [![Go Report](https://goreportcard.com/badge/github.com/markus-wa/gobitread)](https://goreportcard.com/report/github.com/markus-wa/gobitread)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE.md)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fmarkus-wa%2Fgobitread.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fmarkus-wa%2Fgobitread?ref=badge_shield)
 
 ## Go Get
 
@@ -15,3 +16,7 @@ Provides a bit level reader for go.
 ## Example
 
 	TODO
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fmarkus-wa%2Fgobitread.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fmarkus-wa%2Fgobitread?ref=badge_large)
