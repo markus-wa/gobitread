@@ -94,13 +94,19 @@ func (r *BitReader) OpenWithBuffer(underlying io.Reader, buffer []byte) {
 }
 
 // Close resets the BitReader. Open() may be used again after Close().
-func (r *BitReader) Close() {
+func (r *BitReader) Close() error {
+	if closeable, ok := r.underlying.(io.ReadCloser); ok {
+		return closeable.Close()
+	}
+
 	r.underlying = nil
 	r.buffer = nil
 	r.offset = 0
 	r.bitsInBuffer = 0
 	r.chunkTargets = stack{}
 	r.lazyPosition = 0
+
+	return nil
 }
 
 // ReadBit reads a single bit.
