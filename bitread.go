@@ -87,7 +87,7 @@ func (r *BitReader) OpenWithBuffer(underlying io.Reader, buffer []byte) {
 	}
 
 	r.bitsInBuffer = (bytes << 3) - sledBits
-	if bytes < len(r.buffer)-sled {
+	if r.bitsInBuffer < 0 {
 		// All bytes read already
 		r.bitsInBuffer += sledBits
 	}
