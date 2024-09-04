@@ -153,10 +153,18 @@ func (r *BitReader) ReadBitsToByte(n int) byte {
 // ReadInt reads the next n bits as an int.
 // Undefined for n > 32.
 func (r *BitReader) ReadInt(n int) uint {
-	val := binary.LittleEndian.Uint64(r.buffer[r.offset>>3&^3:])
-	res := uint(val << uint(64-(r.offset&31)-n) >> (64 - uint(n)))
-	// Advance after using offset!
-	r.advance(n)
+	byteIndex := r.offset >> 3
+	bitOffset := r.offset & 7
+
+	val := binary.LittleEndian.Uint64(r.buffer[byteIndex:])
+
+	res := uint(val>>bitOffset) & ((1 << n) - 1)
+
+	r.offset += n
+	if r.offset > r.bitsInBuffer {
+		r.refillBuffer()
+	}
+
 	return res
 }
 
