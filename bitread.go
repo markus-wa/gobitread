@@ -6,6 +6,7 @@ package bitread
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -293,7 +294,7 @@ func (r *BitReader) refillBuffer() {
 	r.bitsInBuffer = newBytes << 3
 
 	if err != nil {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			if r.endReached {
 				// Read beyond end of underlying Reader
 				panic(io.ErrUnexpectedEOF)
