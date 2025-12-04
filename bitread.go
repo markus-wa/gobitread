@@ -181,15 +181,49 @@ func (r *BitReader) ReadBytes(n int) []byte {
 // Useful for pooling []byte slices.
 func (r *BitReader) ReadBytesInto(out *[]byte, n int) {
 	bitLevel := r.offset&7 != 0
-	if !bitLevel && r.offset+(n<<3) <= r.bitsInBuffer {
-		// Shortcut if offset%8 = 0 and all bytes are already buffered
-		*out = append(*out, r.buffer[r.offset>>3:(r.offset>>3)+n]...)
-		r.advance(n << 3)
+	if !bitLevel {
+		if r.offset+(n<<3) <= r.bitsInBuffer {
+			// Shortcut if offset%8 = 0 and all bytes are already buffered
+			*out = append(*out, r.buffer[r.offset>>3:(r.offset>>3)+n]...)
+			r.advance(n << 3)
+		} else {
+			// Shortcut if offset%8 =0 but not all bytes are already buffered
+			bytesAvailable := (r.bitsInBuffer - r.offset) >> 3
+			if bytesAvailable > 0 {
+				*out = append(*out, r.buffer[r.offset>>3:(r.offset>>3)+bytesAvailable]...)
+				r.advance(bytesAvailable << 3)
+				n -= bytesAvailable
+			}
+
+			// Now read remaining bytes directly from underlying reader
+			for n > 0 {
+				// Refill buffer if needed
+				if r.offset >= r.bitsInBuffer {
+					r.refillBuffer()
+				}
+
+				// Calculate how many bytes we can read from current buffer
+				bytesToRead := min(n, (r.bitsInBuffer-r.offset)>>3)
+				if bytesToRead > 0 {
+					*out = append(*out, r.buffer[r.offset>>3:(r.offset>>3)+bytesToRead]...)
+					r.advance(bytesToRead << 3)
+					n -= bytesToRead
+				}
+			}
+		}
 	} else {
 		for i := 0; i < n; i++ {
 			*out = append(*out, r.readByteInternal(bitLevel))
 		}
 	}
+}
+
+// Helper function to get minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // ReadCString reads n bytes as characters into a string.
@@ -277,7 +311,7 @@ func (r *BitReader) Skip(n int) {
 
 func (r *BitReader) advance(bits int) {
 	r.offset += bits
-	for r.offset > r.bitsInBuffer {
+	for r.offset >= r.bitsInBuffer {
 		// Refill if we reached the sled
 		r.refillBuffer()
 	}
