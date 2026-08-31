@@ -199,6 +199,10 @@ func (r *BitReader) ReadBytesInto(out *[]byte, n int) {
 			for n > 0 {
 				// Refill buffer if needed
 				if r.offset >= r.bitsInBuffer {
+					if r.endReached {
+						break
+					}
+
 					r.refillBuffer()
 				}
 
@@ -311,7 +315,7 @@ func (r *BitReader) Skip(n int) {
 
 func (r *BitReader) advance(bits int) {
 	r.offset += bits
-	for r.offset >= r.bitsInBuffer {
+	for r.offset > r.bitsInBuffer {
 		// Refill if we reached the sled
 		r.refillBuffer()
 	}
