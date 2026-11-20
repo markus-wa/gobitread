@@ -179,6 +179,7 @@ func (r *BitReader) ReadBytes(n int) []byte {
 
 // ReadBytesInto reads n bytes into out.
 // Useful for pooling []byte slices.
+// out must not share memory with the reader's internal buffer.
 func (r *BitReader) ReadBytesInto(out *[]byte, n int) {
 	bitLevel := r.offset&7 != 0
 	if !bitLevel {
@@ -215,10 +216,48 @@ func (r *BitReader) ReadBytesInto(out *[]byte, n int) {
 				}
 			}
 		}
+	} else if n == 1 {
+		*out = append(*out, r.readByteInternal(true))
 	} else {
-		for i := 0; i < n; i++ {
-			*out = append(*out, r.readByteInternal(bitLevel))
+		r.readUnalignedBytesInto(out, n)
+	}
+}
+
+// readUnalignedBytesInto reads n bytes at an offset that isn't a multiple of 8.
+// Output byte i is the high bits of buffer byte k+i and the low bits of k+i+1. The buffer holds valid
+// bytes up to bitsInBuffer plus the sled, so whole runs are shift-merged 8 bytes at a time,
+// and the reader refills exactly where ReadInt would.
+func (r *BitReader) readUnalignedBytesInto(out *[]byte, n int) {
+	s := uint(r.offset & 7)
+	for n > 0 {
+		m := min(n, (r.bitsInBuffer-r.offset)>>3)
+		if m <= 0 {
+			// The next byte crosses the refill point.
+			*out = append(*out, byte(r.ReadInt(8)))
+			n--
+			continue
 		}
+
+		start := len(*out)
+		if cap(*out)-start < m {
+			// Grow like append, by what was actually read, so a corrupt n can't force a huge allocation.
+			*out = append(*out, make([]byte, m)...)
+		} else {
+			*out = (*out)[:start+m]
+		}
+
+		dst := (*out)[start:]
+		src := r.buffer[r.offset>>3 : r.offset>>3+m+1]
+		i := 0
+		for ; i+8 <= m; i += 8 {
+			binary.LittleEndian.PutUint64(dst[i:], binary.LittleEndian.Uint64(src[i:])>>s|uint64(src[i+8])<<(64-s))
+		}
+		for ; i < m; i++ {
+			dst[i] = src[i]>>s | src[i+1]<<(8-s)
+		}
+
+		r.advance(m << 3)
+		n -= m
 	}
 }
 
